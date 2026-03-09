@@ -30,9 +30,15 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 // ============================================================
 // MIDDLEWARE
 // ============================================================
-app.use('/webhook', express.raw({ type: 'application/json' }));
-app.use('/api/webhooks/kick', express.raw({ type: 'application/json' }));
-app.use(express.json());
+// Parse JSON for API routes, raw body for webhook (signature verification needs raw)
+app.use((req, res, next) => {
+  // If it has Kick event headers, parse as raw for signature verification
+  if (req.headers['kick-event-type']) {
+    express.raw({ type: 'application/json' })(req, res, next);
+  } else {
+    express.json()(req, res, next);
+  }
+});
 
 // ============================================================
 // VIEWER COUNT POLLING - Runs on interval, no Tasklet needed
@@ -99,7 +105,13 @@ function startPolling() {
 // ============================================================
 // WEBHOOK RECEIVER - Kick pushes chat events here
 // ============================================================
-app.post(['/webhook', '/api/webhooks/kick'], async (req, res) => {
+// Catch-all webhook handler - Kick may send to various paths
+app.post('*', async (req, res) => {
+  // Only process if it has Kick event headers
+  if (!req.headers['kick-event-type']) {
+    return res.status(404).json({ error: 'Not a webhook event' });
+  }
+  console.log('Webhook received on path:', req.path, 'Event:', req.headers['kick-event-type']);
   try {
     const messageId = req.headers['kick-event-message-id'];
     const timestamp = req.headers['kick-event-message-timestamp'];
