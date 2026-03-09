@@ -31,6 +31,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 // MIDDLEWARE
 // ============================================================
 app.use('/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/webhooks/kick', express.raw({ type: 'application/json' }));
 app.use(express.json());
 
 // ============================================================
@@ -98,7 +99,7 @@ function startPolling() {
 // ============================================================
 // WEBHOOK RECEIVER - Kick pushes chat events here
 // ============================================================
-app.post('/webhook', async (req, res) => {
+app.post(['/webhook', '/api/webhooks/kick'], async (req, res) => {
   try {
     const messageId = req.headers['kick-event-message-id'];
     const timestamp = req.headers['kick-event-message-timestamp'];
